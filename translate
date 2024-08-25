@@ -1,0 +1,49 @@
+import os
+import subprocess
+from translate import Translator
+
+# 播放列表的網址
+playlist_url = "https://www.youtube.com/watch?v=5D67Qy1tPLY&list=PLLFIgriuZPAcCkmSTfcq7oaHcVy3rzEtc&index=1"  # 替換為你的播放列表ID
+
+# 設定翻譯器
+translator = Translator(to_lang="zh-TW")
+
+# 下載播放列表中的所有影片的自動字幕
+subprocess.run(["yt-dlp", "--write-auto-subs", "--sub-lang", "en.*", "--skip-download", playlist_url])
+
+# 獲取下載的字幕文件
+vtt_files = [f for f in os.listdir() if f.endswith('.en.vtt')]  # 只選擇英文字幕文件
+markdown_content = ""
+
+# 處理每個字幕文件
+for vtt_file in vtt_files:
+    # 讀取 VTT 文件
+    with open(vtt_file, 'r', encoding='utf-8') as file:
+        lines = file.readlines()  # 讀取所有行
+
+    # 添加文件標題到Markdown內容
+    markdown_content += f"# {vtt_file}\n\n"
+
+    # 處理每行字幕
+    for line in lines:
+        if line.strip() and not line.startswith("WEBVTT"):  # 濾掉空行和標題
+            # 假設字幕的格式為 "[時間戳] 內容"
+            if " --> " in line:
+                timestamp, text = line.split(" --> ")
+                text = text.strip()
+            else:
+                timestamp = ""
+                text = line.strip()
+
+            # 翻譯成中文
+            translated_text = translator.translate(text)  # 翻譯為繁體中文
+
+            # 加入 Markdown 格式的內容
+            markdown_content += f"{timestamp} {text}  \n{timestamp} {translated_text}  \n\n"
+
+# 將 Markdown 內容寫入文件
+output_md_file = "subtitles.md"  # 輸出的Markdown文件名
+with open(output_md_file, 'w', encoding='utf-8') as md_file:
+    md_file.write(markdown_content)
+
+print(f"生成的Markdown文件：{output_md_file}")
